@@ -35,6 +35,46 @@ void switchToPrinter()
 
 static uint8_t temporaryBuffer[5300];
 
+
+void goToHomePos()
+{
+
+    asic->setExposureLevel(10000);
+    asic->setSpeedCounter(5000); //10 Steps per clock
+
+    asic->setMotorDirection(A4s2600::MoveForward);
+    asic->enableMotor(true);
+    asic->enableSpeed(true);
+
+    asic->waitForClockChange();
+
+    while(asic->isAtHomePosition())
+    {
+        for(unsigned int i=0; i<15; ++i)
+        {
+            asic->waitForClockChange(2);
+            asic->enableMove(true);
+        }
+    }
+
+    asic->enableMove(false);
+    asic->enableSpeed(false);
+
+    asic->setMotorDirection(A4s2600::MoveBackward);
+    asic->enableMotor(true);
+    asic->enableSpeed(true);
+
+    while(!asic->isAtHomePosition())
+    {
+        for(unsigned int i=0; i<5; ++i)
+        {
+            asic->waitForClockChange(2);
+            asic->enableMove(true);
+        }
+    }
+}
+
+
 int main()
 {
     try
@@ -79,7 +119,7 @@ int main()
 
         asic = std::make_shared<A4s2600>(spp);
 
-        cout << "ASIC Revision:"<<std::hex<<asic->getAsicRevision() <<std::endl;
+        cout << "ASIC Revision:"<<std::hex<<asic->getAsicRevision() <<std::endl;       
         asic->resetFiFo();
         asic->getWm8144().setOperationalMode(Wm8144::Monochrom);
         asic->getWm8144().setPGAGain(Wm8144::ChannelAll,2);
@@ -90,9 +130,74 @@ int main()
         asic->setCalibration(true);
         asic->selectAdFrequency(false);
         asic->setByteCount(5300);
-        asic->setLowerMemoryLimit(00);
-        asic->setUpperMemoryLimit(0x1ffff);
+        asic->setLowerMemoryLimit(100);
+        asic->setUpperMemoryLimit(20*5300);
         asic->setExposureLevel(10000);
+        asic->enableSync(true);
+
+        goToHomePos();
+
+        asic->setExposureLevel(10000);
+        asic->setSpeedCounter(16250);
+        asic->setMotorDirection(A4s2600::MoveForward);
+        asic->enableMotor(true);
+        asic->enableSpeed(true);
+        asic->setCCDMode(true);
+        asic->setDMA(true);
+
+        std::ofstream tmp;
+
+        tmp.open("/tmp/image.ppm");
+        tmp<<"P3"<<std::endl<<"# One scaned line"<<std::endl<<sizeof(temporaryBuffer)<<" 1000"<<std::endl<<"255"<<std::endl;
+
+
+        for(unsigned int i=0; i<50; ++i)
+        {
+            for(unsigned sl=0; sl<20; ++sl)
+            {
+                asic->waitForClockChange(2);
+                asic->sendChannelData(A4s2600::Green);
+                asic->enableMove(true);
+                /*asic->waitForChannelTransferedToFiFo(A4s2600::Green);
+                asic->stopChannelData(A4s2600::Green);*/
+            }
+
+            asic->setDataRequest(true);
+            for(unsigned sl=0; sl<20; ++sl)
+            {
+                    asic->aquireImageData(temporaryBuffer,sizeof(temporaryBuffer));
+                    for(size_t j=0; j<sizeof(temporaryBuffer); ++j)
+                    {
+                        tmp<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" ";
+                    }
+                    tmp<<std::endl;
+            }
+            asic->setDataRequest(false);
+
+        }
+
+        asic->setDataRequest(true);
+        while(asic->fifoAboveLowerLimit())
+        {
+            asic->aquireImageData(temporaryBuffer,sizeof(temporaryBuffer));
+            for(size_t j=0; j<sizeof(temporaryBuffer); ++j)
+            {
+                tmp<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" ";
+            }
+            tmp<<std::endl;
+        }
+        asic->setDataRequest(false);
+
+        tmp.close();
+
+        asic->setCCDMode(false);
+        asic->setDMA(false);
+        asic->enableMove(false);
+        asic->enableSpeed(false);
+
+        goToHomePos();
+
+#if 0
         asic->setLamp(true);
         asic->setCCDMode(true);
         asic->setDMA(true);
@@ -122,7 +227,7 @@ int main()
 
         asic->setDMA(false);
         asic->setCCDMode(false);
-
+#endif
         switchToPrinter();
 
         close(fd);

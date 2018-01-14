@@ -475,10 +475,10 @@ unsigned A4s2600::getCurrentExposureLevel()
 void A4s2600::waitForClockLevel(bool high)
 {
     unsigned level = high ? 1 : 0;
-    unsigned timeout = getCurrentExposureLevel() * 2;
+    unsigned timeout = getCurrentExposureLevel() * 10;
     auto start  = std::chrono::high_resolution_clock::now();
 
-    while(getStatus() & 1 != level)
+    while((getStatus() & 1) != level)
     {
         if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
         {
@@ -487,10 +487,43 @@ void A4s2600::waitForClockLevel(bool high)
     }
 }
 
+bool A4s2600::getClockLevel()
+{
+    return (getStatus() & 1) != 0;
+}
+
 void A4s2600::waitForClockPulse()
 {
     waitForClockLevel(false);
     waitForClockLevel(true);
+}
+
+
+void A4s2600::waitForClockChange()
+{
+    bool level = getClockLevel();
+    unsigned timeout = getCurrentExposureLevel() * 10;
+    auto start  = std::chrono::high_resolution_clock::now();
+    while(level ==  getClockLevel())
+    {
+        if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
+        {
+            throw std::runtime_error("Timeout while waiting for Clock level");
+        }
+    }
+}
+
+void A4s2600::enableSync(bool enable)
+{
+    if(enable)
+    {
+        registerMap_[5].value_ |= 0x20;
+    }else
+    {
+        registerMap_[5].value_ &= 0x20;
+    }
+
+    asicWriteRegister(registerMap_[5]);
 }
 
 void A4s2600::waitForChannelTransferedToFiFo(Channel channel)
@@ -575,4 +608,76 @@ void A4s2600::stopChannelData(Channel channel)
 void A4s2600::aquireImageData(uint8_t *buffer, size_t bufferSize)
 {
     readBufferFromChannel(4, buffer, bufferSize);
+}
+
+
+bool A4s2600::isAtHomePosition()
+{
+    return (readFromChannel(7) & (1<<6)) != 0;
+}
+
+void A4s2600::setMotorDirection(MotorDirection direction)
+{
+    if(direction == MoveForward)
+    {
+        motorControlAndChannelSelection_ &= 0xFC;
+    }else
+    {
+        motorControlAndChannelSelection_ = motorControlAndChannelSelection_ & 0xFE | 2;
+    }
+
+    writeToChannel(4, motorControlAndChannelSelection_);
+}
+
+void A4s2600::enableMotor(bool enabled)
+{
+    if(enabled)
+    {
+        motorControlAndChannelSelection_ |= 0x10;
+    } else
+    {
+        motorControlAndChannelSelection_ &= ~0x10;
+    }
+
+    writeToChannel(4, motorControlAndChannelSelection_);
+}
+
+void A4s2600::enableSpeed(bool enable)
+{
+    if(enable)
+    {
+        motorControlAndChannelSelection_ |= 8;
+    } else
+    {
+        motorControlAndChannelSelection_ &= ~8;
+    }
+
+    writeToChannel(4, motorControlAndChannelSelection_);
+}
+
+void A4s2600::enableMove(bool enable)
+{
+    if(enable)
+    {
+        motorControlAndChannelSelection_ |= 0x4;
+    } else
+    {
+        motorControlAndChannelSelection_ &= ~0x4;
+    }
+
+    writeToChannel(4, motorControlAndChannelSelection_);
+
+    if((asicRevision_ == 0xa2 || asicRevision_ == 0xa4) && enable)
+    {
+        enableMove(false);
+    }
+}
+
+void A4s2600::setSpeedCounter(unsigned counter)
+{
+    registerMap_[25].value_ = (counter >> 8) & 0xFF;
+    registerMap_[24].value_ = counter & 0xFF;
+
+    asicWriteRegister(registerMap_[25]);
+    asicWriteRegister(registerMap_[24]);
 }

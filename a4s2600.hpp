@@ -46,6 +46,11 @@ public:
         lastOnChipMemoryAddress = 0x1FFFF //129kbyte on chip memory
     };
 
+    enum MotorDirection
+    {
+        MoveForward,
+        MoveBackward
+    };
 
     A4s2600(std::shared_ptr<ParallelPortBase> paralleport);
 
@@ -99,8 +104,14 @@ public:
     unsigned getStatus(); //Return the raw status ...
 
     unsigned getCurrentExposureLevel(); //Return the current exposure level
+
     void waitForClockPulse();
+    void waitForClockPulse(unsigned count) { for(unsigned i=0; i<count; ++i) waitForClockPulse(); }
     void waitForClockLevel(bool high);
+    void waitForClockChange();
+    void waitForClockChange(unsigned count) { for(unsigned i=0; i<count; ++i) waitForClockChange(); }
+    bool getClockLevel();
+
     void waitForChannelTransferedToFiFo(Channel channel);
     bool fifoAboveLowerLimit();
     bool fifoAboveUpperLimit();
@@ -108,6 +119,14 @@ public:
     void sendChannelData(Channel channel);
     void stopChannelData(Channel channel);
 
+    bool isAtHomePosition();
+
+    void setMotorDirection(MotorDirection direction);
+    void enableMotor(bool enabled);
+    void enableSpeed(bool enable);
+    void enableMove(bool enable);
+    void setSpeedCounter(unsigned counter);
+    void enableSync(bool enable);
 
 
     Wm8144 &getWm8144() { return wm8144_; }
