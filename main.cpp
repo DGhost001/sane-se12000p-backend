@@ -12,6 +12,7 @@
 #include <linux/parport.h>
 #include <linux/ppdev.h>
 #include <sys/ioctl.h>
+#include <fstream>
 
 using namespace std;
 
@@ -31,6 +32,8 @@ void switchToPrinter()
     unsigned char sequence[]={0x15,0x95,0x35,0xB5,0x55,0xD5,0x75,0xF5,0x0,0x80};
     spp->writeString((char*)sequence,sizeof(sequence));
 }
+
+static uint8_t temporaryBuffer[5300];
 
 int main()
 {
@@ -59,6 +62,7 @@ int main()
 
 
         spp = std::make_shared<ParallelPortSpp>(fd);
+        spp->setupLogFile("/tmp/scanner.ols");
 
         switchToScanner();
 
@@ -76,10 +80,55 @@ int main()
         asic = std::make_shared<A4s2600>(spp);
 
         cout << "ASIC Revision:"<<std::hex<<asic->getAsicRevision() <<std::endl;
+        asic->resetFiFo();
+        asic->getWm8144().setOperationalMode(Wm8144::Monochrom);
+        asic->getWm8144().setPGAGain(Wm8144::ChannelAll,2);
+        //asic->getWm8144().setPGAOffset(Wm8144::ChannelAll,-255);
+        asic->getWm8144().setPixelGain(Wm8144::ChannelAll,2000);
+        asic->getWm8144().setPixelOffset(Wm8144::ChannelAll,0);
+        asic->enableChannel(A4s2600::AllChannels);
+        asic->setCalibration(true);
+        asic->selectAdFrequency(false);
+        asic->setByteCount(5300);
+        asic->setLowerMemoryLimit(00);
+        asic->setUpperMemoryLimit(0x1ffff);
+        asic->setExposureLevel(10000);
+        asic->setLamp(true);
+        asic->setCCDMode(true);
+        asic->setDMA(true);
+
+        std::ofstream tmp;
+
+        tmp.open("/tmp/image.ppm");
+        tmp<<"P3"<<std::endl<<"# One scaned line"<<std::endl<<sizeof(temporaryBuffer)<<" 1000"<<std::endl<<"255"<<std::endl;
+
+        for(unsigned int i=0; i<1000; ++i)
+        {
+            std::cout<<"Line "<<i<<std::endl;
+
+            asic->sendChannelData(A4s2600::Green);
+            asic->waitForChannelTransferedToFiFo(A4s2600::Green);
+            asic->stopChannelData(A4s2600::Green);
+
+            asic->setDataRequest(true);
+            asic->aquireImageData(temporaryBuffer,sizeof(temporaryBuffer));
+            asic->setDataRequest(false);
+            for(size_t j=0; j<sizeof(temporaryBuffer); ++j)
+            {
+                tmp<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" ";
+            }
+            tmp<<std::endl;
+        }
+
+        asic->setDMA(false);
+        asic->setCCDMode(false);
 
         switchToPrinter();
 
         close(fd);
+
+
+
     } catch(std::exception &e)
     {
         std::cerr<<e.what()<<std::endl;

@@ -1,9 +1,13 @@
 #include "a4s2600.hpp"
 #include "parallelport.hpp"
 #include <iostream>
+#include <chrono>
+
+typedef std::chrono::duration<uint64_t, std::ratio<1,1000000> > UsDuration;
 
 A4s2600::A4s2600(std::shared_ptr<ParallelPortBase> paralleport):
-    parallelPort_(paralleport)
+    parallelPort_(paralleport),
+    wm8144_(*this)
 {
     readAsicRevision();
     initializeAsicIndex();
@@ -125,6 +129,11 @@ void A4s2600::writeToChannel(uint8_t channel, uint8_t value)
 uint8_t A4s2600::readFromChannel(uint8_t channel)
 {
     return parallelPort_->readByte(channel | 0x98);
+}
+
+void  A4s2600::readBufferFromChannel(uint8_t channel, uint8_t *buffer, size_t size)
+{
+    parallelPort_->readString(channel | 0x98, (char*)buffer, size);
 }
 
 void A4s2600::asicWriteRegister(const Register &reg)
@@ -380,6 +389,29 @@ void A4s2600::setByteCount(unsigned byteCount)
     asicWriteRegister(registerMap_[23]);
 }
 
+void A4s2600::setExposureLevel(unsigned level)
+{
+    /* Red*/
+    registerMap_[6].value_ = level & 0xff;
+    registerMap_[7].value_ = (level >> 8) & 0xff;
+
+    /* Green */
+    registerMap_[8].value_ = level & 0xff;
+    registerMap_[9].value_ = (level >> 8) & 0xff;
+
+    /* Blue */
+    registerMap_[10].value_ = level & 0xff;
+    registerMap_[11].value_ = (level >> 8) & 0xff;
+
+    asicWriteRegister(registerMap_[6] );
+    asicWriteRegister(registerMap_[7] );
+    asicWriteRegister(registerMap_[8] );
+    asicWriteRegister(registerMap_[9] );
+    asicWriteRegister(registerMap_[10]);
+    asicWriteRegister(registerMap_[11]);
+}
+
+
 void A4s2600::resetFiFo()
 {
     registerMap_[1].value_ |= 0x80;
@@ -393,6 +425,8 @@ void A4s2600::resetFiFo()
 
 void A4s2600::writeToWMRegister(unsigned reg, unsigned value)
 {
+    enableSerial(true);
+
     unsigned cmd = (reg&0x2F)<<8 | (value & 0xFF);
 
     writeToChannel(0x0,0x0);
@@ -413,4 +447,132 @@ void A4s2600::writeToWMRegister(unsigned reg, unsigned value)
     }while(tmp);
 
     sendSerialClock(); //Commit the value
+}
+
+unsigned A4s2600::getStatus()
+{
+    return readFromChannel(6);
+}
+
+void A4s2600::enableSerial(bool enable)
+{
+    if(enable)
+    {
+        registerMap_[49].value_ |= 0x20;
+    }else
+    {
+        registerMap_[49].value_ &= ~0x20;
+    }
+
+    asicWriteRegister(registerMap_[49]);
+}
+
+unsigned A4s2600::getCurrentExposureLevel()
+{
+    return registerMap_[8].value_ | unsigned(registerMap_[9].value_) << 8;
+}
+
+void A4s2600::waitForClockLevel(bool high)
+{
+    unsigned level = high ? 1 : 0;
+    unsigned timeout = getCurrentExposureLevel() * 2;
+    auto start  = std::chrono::high_resolution_clock::now();
+
+    while(getStatus() & 1 != level)
+    {
+        if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
+        {
+            throw std::runtime_error("Timeout while waiting for Clock level");
+        }
+    }
+}
+
+void A4s2600::waitForClockPulse()
+{
+    waitForClockLevel(false);
+    waitForClockLevel(true);
+}
+
+void A4s2600::waitForChannelTransferedToFiFo(Channel channel)
+{
+    unsigned channelValue;
+    unsigned timeout = getCurrentExposureLevel() * 10;
+
+    switch(channel)
+    {
+    case Red: channelValue = 0x40; break;
+    case Green: channelValue = 0x20; break;
+    case Blue: channelValue = 0x10; break;
+    case AllChannels: throw std::runtime_error("Not implemented");
+    }
+
+    auto start  = std::chrono::high_resolution_clock::now();
+    while((getStatus() & channelValue) != 0)
+    {
+        if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
+        {
+            throw std::runtime_error("Timeout while waiting for channel transfer start");
+        }
+    }
+
+    start  = std::chrono::high_resolution_clock::now();
+    while((getStatus() & channelValue) == 0)
+    {
+        if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
+        {
+            throw std::runtime_error("Timeout while waiting for channel transfer finish");
+        }
+    }
+}
+
+bool A4s2600::fifoAboveLowerLimit()
+{
+    return getStatus() & 0x2 != 0;
+}
+
+bool A4s2600::fifoAboveUpperLimit()
+{
+    return getStatus() & 0x4 != 0;
+}
+
+void A4s2600::sendChannelData(Channel channel)
+{
+    unsigned value;
+
+    switch (channel)
+    {
+    case Red: value = 0x80; break;
+    case Green: value = 0x40; break;
+    case Blue: value = 0x20; break;
+    default: throw std::runtime_error("Not implemented");
+    }
+
+    motorControlAndChannelSelection_ |= value;
+    writeToChannel(4, motorControlAndChannelSelection_);
+
+    if(asicRevision_ == 0xa2 || asicRevision_ == 0xa4)
+    {
+        stopChannelData(channel);
+    }
+}
+
+void A4s2600::stopChannelData(Channel channel)
+{
+    unsigned value;
+
+    switch (channel)
+    {
+    case Red: value = 0x80; break;
+    case Green: value = 0x40; break;
+    case Blue: value = 0x20; break;
+    default: throw std::runtime_error("Not implemented");
+    }
+
+    motorControlAndChannelSelection_ &= ~value;
+    writeToChannel(4, motorControlAndChannelSelection_);
+}
+
+void A4s2600::aquireImageData(uint8_t *buffer, size_t bufferSize)
+{
+    readBufferFromChannel(4, buffer, bufferSize);
 }

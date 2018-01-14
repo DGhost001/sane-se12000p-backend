@@ -10,10 +10,13 @@
 #include <system_error>
 #include <unistd.h>
 #include <chrono>
+#include <iostream>
+#include <ios>
+
+typedef std::chrono::duration<uint64_t, std::ratio<1,1000000> > UsDuration;
 
 static void udelay(unsigned useconds)
 {
-    typedef std::chrono::duration<uint64_t, std::ratio<1,1000000> > UsDuration;
 
     auto start = std::chrono::high_resolution_clock::now();
     UsDuration spawn;
@@ -41,6 +44,46 @@ void ParallelPortBase::execAndCheck(bool retValue, const std::string &message)
 void ParallelPortBase::execAndCheck(int retValue, const std::__cxx11::string &message)
 {
     execAndCheck(retValue>=0, message);
+}
+
+
+void ParallelPortBase::setupLogFile(const std::string &filename)
+{
+    logfile_.open(filename,std::ios_base::trunc | std::ios_base::out);
+    logfile_<<";Rate: 1000000"<<std::endl;
+    logfile_<<";Channels: 32"<<std::endl;
+}
+
+void ParallelPortBase::startLogging()
+{
+    logStartTime_ = std::chrono::high_resolution_clock::now();
+    isLogging_ = true;
+}
+
+void ParallelPortBase::stopLogging()
+{
+    isLogging_ = false;
+}
+
+void ParallelPortBase::logRead(char address, char data)
+{
+    if(isLogging_)
+    {
+        uint32_t output = (uint32_t(address)&0xFF) << 8 | uint32_t(data)&0xFF;
+
+        logfile_<<std::hex<<output<<"@";
+        logfile_<<std::dec<<std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - logStartTime_).count()<<std::endl;
+    }
+}
+
+void ParallelPortBase::logWrite(char address, char data)
+{
+    if(isLogging_)
+    {
+        uint32_t output = 0x10000 | (uint32_t(address)&0xFF) << 8 | uint32_t(data)&0xFF;
+        logfile_<<std::hex<<output<<"@";
+        logfile_<<std::dec<<std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - logStartTime_).count()<<std::endl;
+    }
 }
 
 
@@ -121,6 +164,8 @@ void ParallelPortSpp::writeByte(char addr, char byte)
     udelay(1);
     execAndCheck(ioctl(fd_,PPWCONTROL,&low), "W-Low-5");
     udelay(4);
+
+    logWrite(addr, byte);
 }
 
 char ParallelPortSpp::readByte(char addr)
@@ -155,6 +200,8 @@ char ParallelPortSpp::readByte(char addr)
     execAndCheck(ioctl(fd_,PPWCONTROL,&olow), "R-Low-6");
     udelay(1);
 
+    logRead(addr, result);
+
     return result;
 }
 
@@ -188,6 +235,7 @@ void ParallelPortSpp::readString(char addr, char * const buffer, size_t bufferSi
         buffer[i] = readByte();
         execAndCheck(ioctl(fd_,PPWCONTROL,&ilow), "R-Low-5");
         udelay(1);
+        logRead(addr, buffer[i]);
     }
 
     execAndCheck(ioctl(fd_,PPDATADIR,&data_output), "R-Low-3");
@@ -221,6 +269,8 @@ void ParallelPortSpp::writeString(char addr, char const*const buffer, size_t buf
         udelay(1);
         execAndCheck(ioctl(fd_,PPWCONTROL,&low), "W-Low-5");
         udelay(4);
+
+        logWrite(addr, buffer[i]);
     }
 }
 

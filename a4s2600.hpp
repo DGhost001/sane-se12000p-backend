@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "register.hpp"
+#include "wm8144.hpp"
 
 class ParallelPortBase;
 
@@ -50,8 +51,8 @@ public:
 
     void setUpperMemoryLimit(unsigned limit);
     void setLowerMemoryLimit(unsigned limit);
-    void setAdcBitDepth(enum AdcBitDepth depth);
-    void enableChannel(enum Channel channel);
+    void setAdcBitDepth(AdcBitDepth depth);
+    void enableChannel(Channel channel);
 
     enum AdcBitDepth getAdcBitDepth() {return depth_;}
 
@@ -78,7 +79,40 @@ public:
 
     unsigned getAsicRevision() { return asicRevision_; }
 
+    void enableSerial(bool enable);
     void writeToWMRegister(unsigned reg, unsigned value);
+
+    /**
+     * @brief setExposureLevel set the exposure time in us of the CCD
+     * @param level This is the exposure time in us
+     *
+     * @note After some experimentation with this, it looks like the exposure time is
+     * given in clock ticks and one clock tick is equal to 1us, which means that the scanner seams to have
+     * a internal operationl clock of 1Mhz.
+     *
+     * The clock exposed on channel 6 is directly influenced by this parameter. In the scanner everything seams to be
+     * triggered on the rising edge of the clock pulse.
+     */
+
+    void setExposureLevel(unsigned level);
+
+    unsigned getStatus(); //Return the raw status ...
+
+    unsigned getCurrentExposureLevel(); //Return the current exposure level
+    void waitForClockPulse();
+    void waitForClockLevel(bool high);
+    void waitForChannelTransferedToFiFo(Channel channel);
+    bool fifoAboveLowerLimit();
+    bool fifoAboveUpperLimit();
+
+    void sendChannelData(Channel channel);
+    void stopChannelData(Channel channel);
+
+
+
+    Wm8144 &getWm8144() { return wm8144_; }
+
+    void aquireImageData(uint8_t *buffer, size_t bufferSize);
 
 private:
     std::shared_ptr<ParallelPortBase> parallelPort_;
@@ -87,13 +121,17 @@ private:
     AdcBitDepth depth_;
     unsigned int asicRevision_;
     unsigned hwFeatures_;
+    unsigned motorControlAndChannelSelection_;
 
     bool hasWM8142_;
 
 
+    Wm8144 wm8144_;
+
     void asicWriteRegister(const Register &reg);
     void writeToChannel(uint8_t channel, uint8_t value);
     uint8_t readFromChannel(uint8_t channel);
+    void readBufferFromChannel(uint8_t channel, uint8_t *, size_t);
 
     void readAsicRevision();
     void initializeAsicIndex();

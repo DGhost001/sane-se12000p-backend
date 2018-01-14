@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string>
+#include <chrono>
+#include <fstream>
 
 class ParallelPortBase
 {
@@ -23,10 +25,23 @@ public:
 
     void changeMode(int mode);
 
+    void setupLogFile(const std::string &filename);
+    void startLogging();
+    void stopLogging();
+
 protected:
     int fd_;
+
+    std::fstream logfile_;
+    bool isLogging_;
+    std::chrono::high_resolution_clock::time_point logStartTime_;
+
     void execAndCheck(int retValue, const std::string &message);
     void execAndCheck(bool retValue, const std::string &message);
+
+    void logRead(char address, char data);
+    void logWrite(char address, char data);
+
 };
 
 /* ------------------------------------------------------------------------------------------*/
