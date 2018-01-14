@@ -37,7 +37,7 @@ void Wm8144::setPGAOffset(ColorChannels channel, int offset)
     const unsigned poffset = abs(offset);
 
     asic_.writeToWMRegister(0b100000 | channel, poffset & 0xFF);
-    asic_.writeToWMRegister(0b100100 | channel, offset > 0? 0:1);
+    /*asic_.writeToWMRegister(0b100100 | channel, offset > 0? 0:1);*/
 }
 
 void Wm8144::setPixelOffset(ColorChannels channel, unsigned offset)

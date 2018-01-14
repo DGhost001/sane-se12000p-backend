@@ -84,6 +84,10 @@ public:
 
     unsigned getAsicRevision() { return asicRevision_; }
 
+    unsigned readBlackLevel();
+
+    unsigned setDigitalOffset(Channel channel, unsigned offset);
+
     void enableSerial(bool enable);
     void writeToWMRegister(unsigned reg, unsigned value);
 

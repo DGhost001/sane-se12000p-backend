@@ -142,9 +142,15 @@ int main()
         asic->setMotorDirection(A4s2600::MoveForward);
         asic->enableMotor(true);
         asic->enableSpeed(true);
+
+        asic->setDigitalOffset(A4s2600::Green, 8);
+        asic->getWm8144().setPGAOffset(Wm8144::ChannelGreen,0xd9);
+        asic->getWm8144().setPGAGain(Wm8144::ChannelAll,8);
+
         asic->setCCDMode(true);
         asic->setDMA(true);
 
+#if 1
         std::ofstream tmp;
 
         tmp.open("/tmp/image.ppm");
@@ -166,11 +172,19 @@ int main()
             for(unsigned sl=0; sl<20; ++sl)
             {
                     asic->aquireImageData(temporaryBuffer,sizeof(temporaryBuffer));
+
+                    unsigned int sum = 0;
+
                     for(size_t j=0; j<sizeof(temporaryBuffer); ++j)
                     {
                         tmp<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" ";
+                        if(j<20)
+                        {
+                            sum+=temporaryBuffer[j];
+                        }
                     }
                     tmp<<std::endl;
+                    std::cout<<"Black line: "<<sl<<" = "<<sum<<std::endl;
             }
             asic->setDataRequest(false);
 
@@ -197,27 +211,46 @@ int main()
 
         goToHomePos();
 
-#if 0
+#else
         asic->setLamp(true);
+
+        asic->setDigitalOffset(A4s2600::Green, 8);
+        asic->getWm8144().setPGAOffset(Wm8144::ChannelGreen,0xd9);
+        asic->getWm8144().setPGAGain(Wm8144::ChannelAll,8);
         asic->setCCDMode(true);
         asic->setDMA(true);
 
         std::ofstream tmp;
 
         tmp.open("/tmp/image.ppm");
-        tmp<<"P3"<<std::endl<<"# One scaned line"<<std::endl<<sizeof(temporaryBuffer)<<" 1000"<<std::endl<<"255"<<std::endl;
+        tmp<<"P3"<<std::endl<<"# One scaned line"<<std::endl<<sizeof(temporaryBuffer)<<" 256"<<std::endl<<"255"<<std::endl;
 
-        for(unsigned int i=0; i<1000; ++i)
+        for(unsigned int i=0; i<256; ++i)
         {
-            std::cout<<"Line "<<i<<std::endl;
+            asic->setCCDMode(false);
+            asic->getWm8144().setPGAOffset(Wm8144::ChannelGreen,i);
+            asic->setCCDMode(true);
+
 
             asic->sendChannelData(A4s2600::Green);
             asic->waitForChannelTransferedToFiFo(A4s2600::Green);
             asic->stopChannelData(A4s2600::Green);
 
+
             asic->setDataRequest(true);
             asic->aquireImageData(temporaryBuffer,sizeof(temporaryBuffer));
             asic->setDataRequest(false);
+
+            unsigned summe = 0;
+
+            for(unsigned int i=0; i<20; ++i)
+            {
+                summe+=temporaryBuffer[i];
+            }
+
+            std::cout<<"Line "<<i<<" Black:"<<summe<<std::endl;
+
+
             for(size_t j=0; j<sizeof(temporaryBuffer); ++j)
             {
                 tmp<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" ";

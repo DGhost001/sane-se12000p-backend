@@ -141,7 +141,7 @@ void A4s2600::asicWriteRegister(const Register &reg)
     writeToChannel(0x6, reg.address_);
     writeToChannel(0x5, reg.value_);
 
-    std::cout<<"Write\t  0x06 <- 0x"<<std::hex<<int(reg.address_)<<"\t0x05 <- 0x"<<int(reg.value_)<<std::endl;
+    /*std::cout<<"Write\t  0x06 <- 0x"<<std::hex<<int(reg.address_)<<"\t0x05 <- 0x"<<int(reg.value_)<<std::endl;*/
 }
 
 void A4s2600::enableChannel(enum Channel channel)
@@ -470,6 +470,36 @@ void A4s2600::enableSerial(bool enable)
 unsigned A4s2600::getCurrentExposureLevel()
 {
     return registerMap_[8].value_ | unsigned(registerMap_[9].value_) << 8;
+}
+
+unsigned A4s2600::readBlackLevel()
+{
+    writeToChannel(0,0x22);
+    writeToChannel(1,0xC0);
+    unsigned summ = 0;
+
+    for(unsigned int i=0; i<20; ++i)
+    {
+        summ += readFromChannel(3);
+    }
+
+    return summ;
+}
+
+unsigned A4s2600::setDigitalOffset(Channel channel, unsigned offset)
+{
+    unsigned index;
+
+    switch(channel)
+    {
+    case Red: index = 42; break;
+    case Green: index = 44; break;
+    case Blue: index = 46; break;
+    default: throw std::runtime_error("Not implemented");
+    }
+
+    registerMap_[index].value_ = offset;
+    asicWriteRegister(registerMap_[index]);
 }
 
 void A4s2600::waitForClockLevel(bool high)
