@@ -19,6 +19,17 @@ A4s2600::A4s2600(std::shared_ptr<ParallelPortBase> paralleport):
 
 }
 
+Wm8144::ColorChannels A4s2600::getWmChannel(Channel channel)
+{
+    switch(channel)
+    {
+    case Red: return Wm8144::ChannelRed;
+    case Green: return Wm8144::ChannelGreen;
+    case Blue: return Wm8144::ChannelBlue;
+    case AllChannels: return Wm8144::ChannelAll;
+    }
+}
+
 void A4s2600::uploadRegisterSet(const unsigned char data[], size_t elementCount)
 {
     for(size_t i=0; i<elementCount; i+=2)
@@ -710,4 +721,20 @@ void A4s2600::setSpeedCounter(unsigned counter)
 
     asicWriteRegister(registerMap_[25]);
     asicWriteRegister(registerMap_[24]);
+}
+
+void A4s2600::uploadPixelGain(Channel channel, uint8_t *buffer, size_t bufferSize)
+{
+    writeToChannel(0,0);
+    switch(channel)
+    {
+    case Red:writeToChannel(1,0x38); break;
+    case Green: writeToChannel(1,0x50); break;
+    case Blue: writeToChannel(1,0x68); break;
+    }
+
+    for(unsigned int i=0; i<bufferSize; ++i)
+    {
+        writeToChannel(2,buffer[i]);
+    }
 }

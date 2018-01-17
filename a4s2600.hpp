@@ -35,10 +35,10 @@ public:
 
     enum Channel
     {
-        Red,
-        Green,
-        Blue,
-        AllChannels
+        Red = 0,
+        Green = 1,
+        Blue = 2,
+        AllChannels = 3
     };
 
     enum
@@ -136,6 +136,10 @@ public:
     Wm8144 &getWm8144() { return wm8144_; }
 
     void aquireImageData(uint8_t *buffer, size_t bufferSize);
+
+    Wm8144::ColorChannels getWmChannel(Channel channel);
+
+    void uploadPixelGain(Channel channel, uint8_t *buffer, size_t bufferSize);
 
 private:
     std::shared_ptr<ParallelPortBase> parallelPort_;

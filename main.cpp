@@ -4,6 +4,7 @@
 
 #include "parallelport.hpp"
 #include "a4s2600.hpp"
+#include "scannercontrol.hpp"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -18,7 +19,7 @@ using namespace std;
 
 std::shared_ptr<ParallelPortSpp> spp;
 std::shared_ptr<ParallelPortEpp> epp;
-std::shared_ptr<A4s2600> asic;
+
 
 
 void switchToScanner()
@@ -33,46 +34,7 @@ void switchToPrinter()
     spp->writeString((char*)sequence,sizeof(sequence));
 }
 
-static uint8_t temporaryBuffer[5300];
-
-
-void goToHomePos()
-{
-
-    asic->setExposureLevel(10000);
-    asic->setSpeedCounter(5000); //10 Steps per clock
-
-    asic->setMotorDirection(A4s2600::MoveForward);
-    asic->enableMotor(true);
-    asic->enableSpeed(true);
-
-    asic->waitForClockChange();
-
-    while(asic->isAtHomePosition())
-    {
-        for(unsigned int i=0; i<15; ++i)
-        {
-            asic->waitForClockChange(2);
-            asic->enableMove(true);
-        }
-    }
-
-    asic->enableMove(false);
-    asic->enableSpeed(false);
-
-    asic->setMotorDirection(A4s2600::MoveBackward);
-    asic->enableMotor(true);
-    asic->enableSpeed(true);
-
-    while(!asic->isAtHomePosition())
-    {
-        for(unsigned int i=0; i<5; ++i)
-        {
-            asic->waitForClockChange(2);
-            asic->enableMove(true);
-        }
-    }
-}
+uint8_t *image;
 
 
 int main()
@@ -117,150 +79,46 @@ int main()
 
 
 
-        asic = std::make_shared<A4s2600>(spp);
+        A4s2600 asic(spp);
+        ScannerControl scanner(asic);
 
-        cout << "ASIC Revision:"<<std::hex<<asic->getAsicRevision() <<std::endl;       
-        asic->resetFiFo();
-        asic->getWm8144().setOperationalMode(Wm8144::Monochrom);
-        asic->getWm8144().setPGAGain(Wm8144::ChannelAll,2);
-        //asic->getWm8144().setPGAOffset(Wm8144::ChannelAll,-255);
-        asic->getWm8144().setPixelGain(Wm8144::ChannelAll,2000);
-        asic->getWm8144().setPixelOffset(Wm8144::ChannelAll,0);
-        asic->enableChannel(A4s2600::AllChannels);
-        asic->setCalibration(true);
-        asic->selectAdFrequency(false);
-        asic->setByteCount(5300);
-        asic->setLowerMemoryLimit(100);
-        asic->setUpperMemoryLimit(20*5300);
-        asic->setExposureLevel(10000);
-        asic->enableSync(true);
 
-        goToHomePos();
+        scanner.calibrateScanner();
+        scanner.setupResolution(300);
 
-        asic->setExposureLevel(10000);
-        asic->setSpeedCounter(16250);
-        asic->setMotorDirection(A4s2600::MoveForward);
-        asic->enableMotor(true);
-        asic->enableSpeed(true);
+        unsigned height = scanner.getNumberOfLines(29.7,300);
+        unsigned width = scanner.getImageWidth();
 
-        asic->setDigitalOffset(A4s2600::Green, 8);
-        asic->getWm8144().setPGAOffset(Wm8144::ChannelGreen,0xd9);
-        asic->getWm8144().setPGAGain(Wm8144::ChannelAll,8);
+        image = (uint8_t*)malloc(sizeof(uint8_t)*5300*height);
 
-        asic->setCCDMode(true);
-        asic->setDMA(true);
 
-#if 1
+        asic.setCalibration(true);
+
+        scanner.moveToStartPosition();
+
+        scanner.scanLinesGray(A4s2600::Green,height,true,image,sizeof(uint8_t)*5300*height, true);
+
+        asic.setCalibration(false);
+
+        scanner.gotoHomePos();
+
         std::ofstream tmp;
 
         tmp.open("/tmp/image.ppm");
-        tmp<<"P3"<<std::endl<<"# One scaned line"<<std::endl<<sizeof(temporaryBuffer)<<" 1000"<<std::endl<<"255"<<std::endl;
+        tmp<<"P3"<<std::endl<<"# One scaned line"<<std::endl<<width<<" "<<height<<std::endl<<"255"<<std::endl;
 
 
-        for(unsigned int i=0; i<50; ++i)
+        for(unsigned int i=0; i<height; ++i)
         {
-            for(unsigned sl=0; sl<20; ++sl)
+            for(unsigned sl=0; sl<width; ++sl)
             {
-                asic->waitForClockChange(2);
-                asic->sendChannelData(A4s2600::Green);
-                asic->enableMove(true);
-                /*asic->waitForChannelTransferedToFiFo(A4s2600::Green);
-                asic->stopChannelData(A4s2600::Green);*/
+                tmp<<unsigned(image[i*5300+sl])<<" "<<unsigned(image[i*5300+sl])<<" "<<unsigned(image[i*5300+sl])<<" ";
             }
-
-            asic->setDataRequest(true);
-            for(unsigned sl=0; sl<20; ++sl)
-            {
-                    asic->aquireImageData(temporaryBuffer,sizeof(temporaryBuffer));
-
-                    unsigned int sum = 0;
-
-                    for(size_t j=0; j<sizeof(temporaryBuffer); ++j)
-                    {
-                        tmp<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" ";
-                        if(j<20)
-                        {
-                            sum+=temporaryBuffer[j];
-                        }
-                    }
-                    tmp<<std::endl;
-                    std::cout<<"Black line: "<<sl<<" = "<<sum<<std::endl;
-            }
-            asic->setDataRequest(false);
-
         }
 
-        asic->setDataRequest(true);
-        while(asic->fifoAboveLowerLimit())
-        {
-            asic->aquireImageData(temporaryBuffer,sizeof(temporaryBuffer));
-            for(size_t j=0; j<sizeof(temporaryBuffer); ++j)
-            {
-                tmp<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" ";
-            }
-            tmp<<std::endl;
-        }
-        asic->setDataRequest(false);
-
+        free(image);
         tmp.close();
 
-        asic->setCCDMode(false);
-        asic->setDMA(false);
-        asic->enableMove(false);
-        asic->enableSpeed(false);
-
-        goToHomePos();
-
-#else
-        asic->setLamp(true);
-
-        asic->setDigitalOffset(A4s2600::Green, 8);
-        asic->getWm8144().setPGAOffset(Wm8144::ChannelGreen,0xd9);
-        asic->getWm8144().setPGAGain(Wm8144::ChannelAll,8);
-        asic->setCCDMode(true);
-        asic->setDMA(true);
-
-        std::ofstream tmp;
-
-        tmp.open("/tmp/image.ppm");
-        tmp<<"P3"<<std::endl<<"# One scaned line"<<std::endl<<sizeof(temporaryBuffer)<<" 256"<<std::endl<<"255"<<std::endl;
-
-        for(unsigned int i=0; i<256; ++i)
-        {
-            asic->setCCDMode(false);
-            asic->getWm8144().setPGAOffset(Wm8144::ChannelGreen,i);
-            asic->setCCDMode(true);
-
-
-            asic->sendChannelData(A4s2600::Green);
-            asic->waitForChannelTransferedToFiFo(A4s2600::Green);
-            asic->stopChannelData(A4s2600::Green);
-
-
-            asic->setDataRequest(true);
-            asic->aquireImageData(temporaryBuffer,sizeof(temporaryBuffer));
-            asic->setDataRequest(false);
-
-            unsigned summe = 0;
-
-            for(unsigned int i=0; i<20; ++i)
-            {
-                summe+=temporaryBuffer[i];
-            }
-
-            std::cout<<"Line "<<i<<" Black:"<<summe<<std::endl;
-
-
-            for(size_t j=0; j<sizeof(temporaryBuffer); ++j)
-            {
-                tmp<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" "<<unsigned(temporaryBuffer[j])<<" ";
-            }
-            tmp<<std::endl;
-        }
-
-        asic->setDMA(false);
-        asic->setCCDMode(false);
-#endif
         switchToPrinter();
 
         close(fd);
