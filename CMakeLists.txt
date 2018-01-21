@@ -1,6 +1,24 @@
 project(mustekDriver2)
 cmake_minimum_required(VERSION 2.8)
-aux_source_directory(. SRC_LIST)
+set(SRC_LIST
+    a4s2600.cpp
+    a4s2600.hpp
+    parallelport.cpp
+    parallelport.hpp
+    scannercontrol.cpp
+    scannercontrol.hpp
+    wm8144.cpp
+    wm8144.hpp
+    sane-backend.c
+)
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -std=gnu++11)
-add_executable(${PROJECT_NAME} ${SRC_LIST})
+
+add_library(sane-se12000p SHARED ${SRC_LIST})
+set_target_properties(sane-se12000p PROPERTIES VERSION "1.0.25"
+                                           SOVERSION 1)
+
+add_executable(${PROJECT_NAME} main.cpp)
+target_link_libraries(${PROJECT_NAME}
+                       sane-se12000p
+)
 
