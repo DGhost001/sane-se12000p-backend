@@ -1,4 +1,5 @@
 #include "scannercontrol.hpp"
+#include "parallelport.hpp"
 #include <iostream>
 #include <vector>
 
@@ -342,4 +343,17 @@ void ScannerControl::scanLinesGray(A4s2600::Channel channel, unsigned numberOfLi
 unsigned ScannerControl::getImageWidth()
 {
     return 5300/multiplyer_;
+}
+
+
+void ScannerControl::switchToPrinter(ParallelPortBase &pb)
+{
+    unsigned char sequence[]={0x15,0x95,0x35,0xB5,0x55,0xD5,0x75,0xF5,0x0,0x80};
+    pb.writeString(reinterpret_cast<char*>(sequence),sizeof(sequence));
+}
+
+void ScannerControl::switchToScanner(ParallelPortBase &pb)
+{
+    unsigned char sequence[]={0x15,0x95,0x35,0xB5,0x55,0xD5,0x75,0xF5,0x1,0x81};
+    pb.writeString(reinterpret_cast<char*>(sequence),sizeof(sequence));
 }

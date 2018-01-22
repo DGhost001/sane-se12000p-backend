@@ -52,7 +52,7 @@ public:
         MoveBackward
     };
 
-    A4s2600(std::shared_ptr<ParallelPortBase> paralleport);
+    A4s2600(ParallelPortBase &paralleport);
 
     void setUpperMemoryLimit(unsigned limit);
     void setLowerMemoryLimit(unsigned limit);
@@ -142,7 +142,7 @@ public:
     void uploadPixelGain(Channel channel, uint8_t *buffer, size_t bufferSize);
 
 private:
-    std::shared_ptr<ParallelPortBase> parallelPort_;
+    ParallelPortBase &parallelPort_;
     std::vector<Register> registerMap_;
 
     AdcBitDepth depth_;

@@ -17,6 +17,9 @@ public:
     unsigned getNumberOfLines(double sizeInCm, unsigned dpi);
     unsigned getImageWidth();
 
+    static void switchToScanner(ParallelPortBase &pb);
+    static void switchToPrinter(ParallelPortBase &pb);
+
 private:
     typedef std::vector<uint8_t> Line;
     A4s2600 &asic_;

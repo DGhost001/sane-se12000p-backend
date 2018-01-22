@@ -5,7 +5,7 @@
 
 typedef std::chrono::duration<uint64_t, std::ratio<1,1000000> > UsDuration;
 
-A4s2600::A4s2600(std::shared_ptr<ParallelPortBase> paralleport):
+A4s2600::A4s2600(ParallelPortBase &paralleport):
     parallelPort_(paralleport),
     wm8144_(*this)
 {
@@ -134,17 +134,17 @@ void A4s2600::readAsicRevision()
 void A4s2600::writeToChannel(uint8_t channel, uint8_t value)
 {
     //There is also a |0x18 << which seams to be used when reading back values using EPP mode ... could the 8 mean EPP? Or Tranfer?
-    parallelPort_->writeByte(channel | 0x10, value);
+    parallelPort_.writeByte(channel | 0x10, value);
 }
 
 uint8_t A4s2600::readFromChannel(uint8_t channel)
 {
-    return parallelPort_->readByte(channel | 0x98);
+    return parallelPort_.readByte(channel | 0x98);
 }
 
 void  A4s2600::readBufferFromChannel(uint8_t channel, uint8_t *buffer, size_t size)
 {
-    parallelPort_->readString(channel | 0x98, (char*)buffer, size);
+    parallelPort_.readString(channel | 0x98, (char*)buffer, size);
 }
 
 void A4s2600::asicWriteRegister(const Register &reg)

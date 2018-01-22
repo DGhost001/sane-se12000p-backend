@@ -10,8 +10,8 @@
 class ParallelPortBase
 {
 public:
-    ParallelPortBase(int fd): fd_(fd) {}
-    virtual ~ParallelPortBase(){}
+    ParallelPortBase(int fd);
+    virtual ~ParallelPortBase();
 
     virtual void writeByte(char address, char byte) = 0;
     virtual char readByte(char address) = 0;
@@ -62,7 +62,7 @@ public:
 class ParallelPortSpp: public ParallelPortBase
 {
 public:
-    ParallelPortSpp(int fd);
+    ParallelPortSpp(const std::string &device);
 
     virtual void writeByte(char addr, char byte);
     virtual char readByte(char);

@@ -1,5 +1,9 @@
 #include "parallelport.hpp"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
 #include <linux/parport.h>
@@ -26,6 +30,17 @@ static void udelay(unsigned useconds)
     }while(spawn.count()<useconds);
 }
 
+ParallelPortBase::ParallelPortBase(int fd):
+    fd_(fd)
+{
+    execAndCheck(fd_, "Failed to open parallel port");
+    execAndCheck(ioctl(fd,PPCLAIM),"Failed to claim the parallel port");
+}
+
+ParallelPortBase::~ParallelPortBase()
+{
+    close(fd_);
+}
 
 void ParallelPortBase::changeMode(int mode)
 {
@@ -138,7 +153,7 @@ void ParallelPortEpp::writeString(char address, char const * const buffer, size_
 }
 
 
-ParallelPortSpp::ParallelPortSpp(int fd): ParallelPortBase(fd)
+ParallelPortSpp::ParallelPortSpp(const std::string &device): ParallelPortBase(open(device.c_str(),O_RDWR))
 {
 }
 

@@ -9,7 +9,9 @@ set(SRC_LIST
     scannercontrol.hpp
     wm8144.cpp
     wm8144.hpp
-    sane-backend.c
+    sane-backend.cpp
+    sanedevicehandle.cpp
+    sanedevicehandle.hpp
 )
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -std=gnu++11)
 
