@@ -21,6 +21,12 @@ struct MyOption
     std::function<int(SaneDeviceHandle*, void *)> setterFunc_;
 };
 
+static int setDpi(SaneDeviceHandle*, void*);
+static int getDpi(SaneDeviceHandle*, void*);
+
+static int getOptionCount(SaneDeviceHandle *, void*);
+
+
 static MyOption OptionCount =
 {
     .option_ = {
@@ -33,7 +39,7 @@ static MyOption OptionCount =
         .cap = 0,
         .constraint_type = SANE_CONSTRAINT_NONE
     },
-    .getterFunc_ = 0,
+    .getterFunc_ = getOptionCount,
     .setterFunc_ = 0
 };
 
@@ -55,8 +61,8 @@ static MyOption OptionDpi =
             .word_list = allowedDpi
         }
     },
-    .getterFunc_ = 0,
-    .setterFunc_ = 0
+    .getterFunc_ = getDpi,
+    .setterFunc_ = setDpi
 };
 
 static SANE_Range brYRange =
@@ -245,6 +251,26 @@ const SANE_Option_Descriptor * EXPORT(get_option_descriptor) (SANE_Handle h, SAN
     return 0;
 }
 
+static int setDpi(SaneDeviceHandle *handler, void *v)
+{
+    handler->getScanner().setupResolution(*static_cast<SANE_Int*>(v));
+
+    return SANE_INFO_RELOAD_PARAMS;
+}
+
+static int getDpi(SaneDeviceHandle *handler, void *v)
+{
+    *static_cast<SANE_Int*>(v) = handler->getScanner().getDpi();
+
+    return 0;
+}
+
+static int getOptionCount(SaneDeviceHandle *, void *v)
+{
+    *static_cast<SANE_Int*>(v) = SANE_OPTION_COUNT;
+    return 0;
+}
+
 SANE_Status EXPORT(control_option) (SANE_Handle h, SANE_Int n,
                                  SANE_Action a, void *v,
                                  SANE_Int * i)
@@ -318,12 +344,69 @@ SANE_Status EXPORT(get_parameters) (SANE_Handle h,SANE_Parameters * p)
 
 SANE_Status EXPORT(start) (SANE_Handle h)
 {
-    return SANE_STATUS_GOOD;
+    if(h)
+    {
+        try
+        {
+            SaneDeviceHandle *handle = static_cast<SaneDeviceHandle*>(h);
+            handle->startScanning();
+        }catch(const std::exception &e)
+        {
+            std::cerr<<e.what()<<std::endl;
+            return SANE_STATUS_IO_ERROR;
+        }
+
+        return SANE_STATUS_GOOD;
+    }else
+    {
+        return SANE_STATUS_INVAL;
+    }
 }
 
 SANE_Status EXPORT(read) (SANE_Handle h, SANE_Byte * buf, SANE_Int maxlen, SANE_Int * len)
 {
-    return SANE_STATUS_EOF;
+    if(h)
+    {
+        SaneDeviceHandle *handle = static_cast<SaneDeviceHandle*>(h);
+
+        try
+        {
+            if(handle->isScanFinished() && handle->copyFinished())
+            {
+                return SANE_STATUS_EOF;
+            }
+
+            //In case of blocking io ... wait for the scanner to finish
+            if(!handle->isScanFinished() && handle->getBlocking())
+            {
+                handle->waitForFinishedScan();
+            }else if(!handle->isScanFinished()) //Do we have actual image data??
+            {
+                if(*len)
+                {
+                    *len = 0;
+                }
+
+                return SANE_STATUS_GOOD;
+            }
+
+            int result = handle->copyImagebuffer(buf,maxlen);
+            if(len)
+            {
+                *len = result;
+            }
+
+            return SANE_STATUS_GOOD;
+
+        }catch(const std::exception &e)
+        {
+            std::cerr<<e.what()<<std::endl;
+            return SANE_STATUS_IO_ERROR;
+        }
+    }
+
+    return SANE_STATUS_INVAL;
+
 }
 
 void EXPORT(cancel) (SANE_Handle h)
@@ -332,7 +415,15 @@ void EXPORT(cancel) (SANE_Handle h)
 
 SANE_Status EXPORT(set_io_mode) (SANE_Handle h, SANE_Bool m)
 {
-    return SANE_STATUS_GOOD;
+    if(h)
+    {
+        SaneDeviceHandle *handle = static_cast<SaneDeviceHandle*>(h);
+        handle->setBlocking(m == SANE_TRUE);
+
+        return SANE_STATUS_GOOD;
+    }
+
+    return SANE_STATUS_INVAL;
 }
 
 SANE_Status EXPORT(get_select_fd) (SANE_Handle h, SANE_Int *fd)

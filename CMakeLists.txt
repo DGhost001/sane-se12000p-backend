@@ -1,5 +1,6 @@
 project(mustekDriver2)
 cmake_minimum_required(VERSION 2.8)
+find_package (Threads)
 set(SRC_LIST
     a4s2600.cpp
     a4s2600.hpp
@@ -16,6 +17,7 @@ set(SRC_LIST
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -std=gnu++11)
 
 add_library(sane-se12000p SHARED ${SRC_LIST})
+target_link_libraries(sane-se12000p  ${CMAKE_THREAD_LIBS_INIT})
 set_target_properties(sane-se12000p PROPERTIES VERSION "1.0.25"
                                            SOVERSION 1)
 

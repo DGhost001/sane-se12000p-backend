@@ -188,7 +188,7 @@ void ScannerControl::adjustOffset(A4s2600::Channel channel)
     {
         asic_.setDigitalOffset(channel, digitalOffset);
         analogOffset = adjustAnalogOffset(channel);
-        std::cout<<"DOffset: "<<digitalOffset;
+        std::cout<<"DOffset: "<<digitalOffset<<std::endl;
         if(analogOffset == 255)
         {
             digitalOffset += 4;
