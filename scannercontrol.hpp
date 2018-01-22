@@ -14,11 +14,13 @@ public:
     void scanLinesGray(A4s2600::Channel channel, unsigned numberOfLines, bool moveWhileScanning, uint8_t *buffer, size_t bufferSize, bool enableCalibration = false);
     void calibrateScanner();
     void moveToStartPosition();
-    unsigned getNumberOfLines(double sizeInCm, unsigned dpi);
+    unsigned getNumberOfLines(double sizeInCm);
     unsigned getImageWidth();
 
     static void switchToScanner(ParallelPortBase &pb);
     static void switchToPrinter(ParallelPortBase &pb);
+
+    int getDpi();
 
 private:
     typedef std::vector<uint8_t> Line;

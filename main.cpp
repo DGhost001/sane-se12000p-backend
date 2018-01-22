@@ -37,7 +37,7 @@ int main()
         scanner.calibrateScanner();
         scanner.setupResolution(300);
 
-        unsigned height = scanner.getNumberOfLines(29.7,300);
+        unsigned height = scanner.getNumberOfLines(29.7);
         unsigned width = scanner.getImageWidth();
 
         image = (uint8_t*)malloc(sizeof(uint8_t)*5300*height);

@@ -93,6 +93,11 @@ void ScannerControl::setupResolution(unsigned dpi)
     motorSpeed_ = motorSpeed_ / multiplyer_;
 }
 
+int ScannerControl::getDpi()
+{
+    return 600 / multiplyer_;
+}
+
 unsigned ScannerControl::getBlackTotal(const Line &line)
 {
     unsigned sum = 0;
@@ -118,10 +123,10 @@ void ScannerControl::moveToStartPosition()
 
 }
 
-unsigned ScannerControl::getNumberOfLines(double sizeInCm, unsigned dpi)
+unsigned ScannerControl::getNumberOfLines(double sizeInCm)
 {
     double sizeInInch = sizeInCm / 2.54;
-    return dpi * sizeInInch;
+    return 600 * sizeInInch / multiplyer_ ;
 }
 
 unsigned ScannerControl::getBrightSum(const Line &line)
