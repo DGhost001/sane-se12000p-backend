@@ -82,7 +82,7 @@ void A4s2600::uploadConfig()
     registerMap_[14].value_ = 49;
 
     hwFeatures_ = readFromChannel(1);
-    std::cout<<"Hardware Features: "<<std::hex<<static_cast<unsigned int>(hwFeatures_)<<std::endl;
+    std::cerr<<"Hardware Features: "<<std::hex<<static_cast<unsigned int>(hwFeatures_)<<std::endl;
 
     hasWM8142_ = (hwFeatures_ & 0x10) != 0;
 
@@ -570,7 +570,7 @@ void A4s2600::enableSync(bool enable)
 void A4s2600::waitForChannelTransferedToFiFo(Channel channel)
 {
     unsigned channelValue;
-    unsigned timeout = getCurrentExposureLevel() * 10;
+    unsigned timeout = getCurrentExposureLevel() * 10 * 1000;
 
     switch(channel)
     {
@@ -585,6 +585,7 @@ void A4s2600::waitForChannelTransferedToFiFo(Channel channel)
     {
         if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
         {
+            std::cerr<<std::dec<<timeout<<std::endl;
             throw std::runtime_error("Timeout while waiting for channel transfer start");
         }
     }

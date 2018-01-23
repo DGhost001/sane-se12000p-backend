@@ -27,6 +27,9 @@ public:
     bool getBlocking() const;
     void setBlocking(bool blocking);
 
+    double getImageHeightInCm() const;
+    void setImageHeightInCm(double imageHeightInCm);
+
 private:
     ParallelPortSpp paraport_;
     A4s2600 *asic_;

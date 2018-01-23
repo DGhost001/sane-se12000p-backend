@@ -59,7 +59,10 @@ void ScannerControl::gotoHomePos()
 
 void ScannerControl::initalSetupScanner()
 {
-    std::cout << "ASIC Revision:"<<std::hex<<asic_.getAsicRevision() <<std::endl;
+    std::cerr << "ASIC Revision:"<<std::hex<<asic_.getAsicRevision() <<std::endl;
+    asic_.setCCDMode(false);
+    asic_.setDMA(false);
+    asic_.enableSync(true);
     asic_.resetFiFo();
     asic_.getWm8144().setOperationalMode(Wm8144::Monochrom);
     asic_.getWm8144().setPGAGain(Wm8144::ChannelAll,2);
@@ -72,9 +75,6 @@ void ScannerControl::initalSetupScanner()
     asic_.setLowerMemoryLimit(100);
     asic_.setUpperMemoryLimit(20*BytePerLine);
     asic_.setExposureLevel(10000);
-    asic_.enableSync(true);
-    asic_.setCCDMode(false);
-    asic_.setDMA(false);
 }
 
 void ScannerControl::setupResolution(unsigned dpi)
@@ -87,7 +87,7 @@ void ScannerControl::setupResolution(unsigned dpi)
     case 200: multiplyer_ = 3; break;
     case 100: multiplyer_ = 6;break;
     case 50:  multiplyer_ = 12;break;
-    default: throw std::runtime_error("Not supported!");
+    default: throw std::runtime_error("Resolution "+std::to_string(dpi)+"dpi is not supported!");
     }
 
     motorSpeed_ = motorSpeed_ / multiplyer_;
@@ -172,7 +172,7 @@ unsigned ScannerControl::adjustAnalogOffset(A4s2600::Channel channel)
        mask >>= 1;
    }
 
-   std::cout<<" Min Black: "<<min<<std::endl;
+   std::cerr<<" Min Black: "<<min<<std::endl;
 
    return offset;
 }
@@ -188,7 +188,7 @@ void ScannerControl::adjustOffset(A4s2600::Channel channel)
     {
         asic_.setDigitalOffset(channel, digitalOffset);
         analogOffset = adjustAnalogOffset(channel);
-        std::cout<<"DOffset: "<<digitalOffset<<std::endl;
+        std::cerr<<"DOffset: "<<digitalOffset<<std::endl;
         if(analogOffset == 255)
         {
             digitalOffset += 4;

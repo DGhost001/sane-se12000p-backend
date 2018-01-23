@@ -1,14 +1,17 @@
 #include "sanedevicehandle.hpp"
 #include <functional>
+#include <iostream>
+#include <unistd.h>
 
 SaneDeviceHandle::SaneDeviceHandle(const std::string &devName):
     paraport_(devName),
     asic_(0),
     scanner_(0),
+    thread_(0),
     image(0),
     bytesAvailable_(0),
     bytesRead_(0),
-    imageHeightInCm_(29.7),
+    imageHeightInCm_(5),
     scanFinished_(true),
     blocking_(true)
 {
@@ -80,11 +83,7 @@ void SaneDeviceHandle::startScanning()
     bytesAvailable_ = 0;
     bytesRead_ = 0;
     scanFinished_ = false;
-    thread_ = new std::thread(std::bind(&SaneDeviceHandle::runScan,this));
-}
 
-void SaneDeviceHandle::runScan()
-{
     unsigned dpi = scanner_->getDpi(); //Normally not required, but it is safer to assume that this is the best way to do it
     scanner_->calibrateScanner();
     scanner_->setupResolution(dpi);
@@ -93,6 +92,11 @@ void SaneDeviceHandle::runScan()
 
     scanner_->moveToStartPosition();
 
+    thread_ = new std::thread(std::bind(&SaneDeviceHandle::runScan,this));
+}
+
+void SaneDeviceHandle::runScan()
+{
     unsigned height = scanner_->getNumberOfLines(imageHeightInCm_);
     unsigned width = scanner_->getImageWidth();
 
@@ -110,6 +114,8 @@ void SaneDeviceHandle::runScan()
     scanner_->gotoHomePos();
 
     bytesAvailable_ = height * width * sizeof(uint8_t);
+
+    std::cerr<<std::dec<<"Finished image "<<width<<"x"<<height<< " ("<<bytesAvailable_<<" bytes)"<<std::endl;
     scanFinished_ = true;
 }
 
@@ -124,11 +130,11 @@ void SaneDeviceHandle::waitForFinishedScan()
 
 size_t SaneDeviceHandle::copyImagebuffer(uint8_t *buff, size_t bufferLength)
 {
-    if(scanFinished_)
+    if(scanFinished_ && bytesAvailable_ != bytesRead_)
     {
         size_t thisBuffSize = 0;
         unsigned width = scanner_->getImageWidth();
-        for(;bytesAvailable_!=bytesRead_ && thisBuffSize < bufferLength;++bytesRead_, ++thisBuffSize)
+        for(;bytesAvailable_!=bytesRead_ && thisBuffSize < bufferLength;++bytesRead_, ++thisBuffSize, ++buff)
         {
             *buff = image[(bytesRead_ / width)*5300 + bytesRead_ % width];
         }
@@ -147,4 +153,14 @@ bool SaneDeviceHandle::getBlocking() const
 void SaneDeviceHandle::setBlocking(bool blocking)
 {
     blocking_ = blocking;
+}
+
+double SaneDeviceHandle::getImageHeightInCm() const
+{
+    return imageHeightInCm_;
+}
+
+void SaneDeviceHandle::setImageHeightInCm(double imageHeightInCm)
+{
+    imageHeightInCm_ = imageHeightInCm;
 }
