@@ -20,7 +20,7 @@ Things that need work:
 - Enable the ASIC internal image processing capabilities, currently all scans are done with the internal image processing disabled and the required things are done in SW.
 - Getting EPP to work for faster data transfer between scanner and PC
 
-##Code Organization
+## Code Organization
 
 - a4s2600.cpp - The implementation of the ASIC register access
 - parallelport.cpp - Helper class for accessing the parallel port under linux
