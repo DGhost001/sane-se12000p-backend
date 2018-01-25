@@ -223,6 +223,12 @@ void ScannerControl::adjustAnalogGain(A4s2600::Channel channel)
 
 void ScannerControl::calibrateScanner()
 {
+    /* Reset the Settings in the WM Controller*/
+    asic_.getWm8144().setPGAGain(Wm8144::ChannelAll,2);
+    asic_.getWm8144().setPGAOffset(Wm8144::ChannelAll,127);
+    asic_.getWm8144().setPixelGain(Wm8144::ChannelAll,2000);
+    asic_.getWm8144().setPixelOffset(Wm8144::ChannelAll,0);
+
     asic_.setCalibration(true);
 
   //  adjustOffset(A4s2600::Red); adjustAnalogGain(A4s2600::Red); adjustOffset(A4s2600::Red);
