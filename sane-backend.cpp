@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <functional>
+#include <string.h>
 
 #include "scannercontrol.hpp"
 #include "a4s2600.hpp"
@@ -11,7 +12,7 @@
 
 enum
 {
-    SANE_OPTION_COUNT = 6
+    SANE_OPTION_COUNT = 7
 };
 
 struct MyOption
@@ -35,6 +36,9 @@ static int setScanWidth(SaneDeviceHandle *, void*);
 
 static int getStart(SaneDeviceHandle *, void*);
 static int setStart(SaneDeviceHandle *, void*);
+
+static int getScanMode(SaneDeviceHandle *, void*);
+static int setScanMode(SaneDeviceHandle *, void*);
 
 
 static MyOption OptionCount =
@@ -185,6 +189,33 @@ static MyOption OptionStartY =
     .getterFunc_ = getStart,
     .setterFunc_ = setStart
 };
+
+static SANE_String_Const mode_list[] = {
+    SANE_VALUE_SCAN_MODE_LINEART,
+    SANE_VALUE_SCAN_MODE_GRAY,
+    SANE_VALUE_SCAN_MODE_COLOR
+};
+
+static MyOption OptionScanMode =
+{
+    .option_ = {
+        .name = SANE_NAME_SCAN_MODE,
+        .title= SANE_TITLE_SCAN_MODE,
+        .desc = SANE_DESC_SCAN_MODE,
+        .type = SANE_TYPE_STRING,
+        .unit = SANE_UNIT_NONE,
+        .size = 64,
+        .cap = SANE_CAP_SOFT_SELECT | SANE_CAP_SOFT_DETECT,
+        .constraint_type = SANE_CONSTRAINT_STRING_LIST,
+        .constraint =
+        {
+            .string_list = mode_list
+        }
+    },
+    .getterFunc_ = getScanMode,
+    .setterFunc_ = setScanMode
+};
+
 #define BACKEND_NAME se12000p
 #define EXPORT(Name) _sane_se12000p_ ## Name
 
@@ -341,6 +372,7 @@ const SANE_Option_Descriptor * EXPORT(get_option_descriptor) (SANE_Handle /*h*/,
         [3]= OptionBottomRightY.option_,
         [4]= OptionStartX.option_,
         [5]= OptionStartY.option_,
+        [6]= OptionScanMode.option_
     };
 
     if(n>= 0 && n < SANE_OPTION_COUNT)
@@ -429,6 +461,17 @@ static int setScanWidth(SaneDeviceHandle *, void*)
 }
 
 
+static int getScanMode(SaneDeviceHandle *, void* v)
+{
+   memcpy(v,&mode_list[1], strlen(mode_list[1]));
+   return 0;
+}
+
+static int setScanMode(SaneDeviceHandle *, void*)
+{
+   return SANE_INFO_RELOAD_PARAMS | SANE_INFO_INEXACT;
+}
+
 
 SANE_Status EXPORT(control_option) (SANE_Handle h, SANE_Int n,
                                  SANE_Action a, void *v,
@@ -443,6 +486,7 @@ SANE_Status EXPORT(control_option) (SANE_Handle h, SANE_Int n,
         [3]= OptionBottomRightY,
         [4]= OptionStartX,
         [5]= OptionStartY,
+        [6]= OptionScanMode
     };
 
     if(n>=0 && n<SANE_OPTION_COUNT && v && h)
