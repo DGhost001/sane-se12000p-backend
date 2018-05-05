@@ -84,7 +84,7 @@ void ParallelPortBase::logRead(char address, char data)
 {
     if(isLogging_)
     {
-        uint32_t output = (uint32_t(address)&0xFF) << 8 | uint32_t(data)&0xFF;
+        uint32_t output = (uint32_t(address)&0xFF) << 8 | (uint32_t(data)&0xFF);
 
         logfile_<<std::hex<<output<<"@";
         logfile_<<std::dec<<std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - logStartTime_).count()<<std::endl;
@@ -95,7 +95,7 @@ void ParallelPortBase::logWrite(char address, char data)
 {
     if(isLogging_)
     {
-        uint32_t output = 0x10000 | (uint32_t(address)&0xFF) << 8 | uint32_t(data)&0xFF;
+        uint32_t output = 0x10000 | (uint32_t(address)&0xFF) << 8 | (uint32_t(data)&0xFF);
         logfile_<<std::hex<<output<<"@";
         logfile_<<std::dec<<std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - logStartTime_).count()<<std::endl;
     }
@@ -124,7 +124,7 @@ void ParallelPortEpp::readString(char address, char * const buffer, size_t buffe
     changeMode(IEEE1284_MODE_EPP | IEEE1284_DATA);
 
     char *bp = buffer;
-    for(unsigned int i = bufferSize; i>0; --i,++bp )
+    for(size_t i = bufferSize; i>0; --i,++bp )
     {
         execAndCheck(read(fd_,bp, 1) == 1, "EPP Read from PP failed");
     }
@@ -146,7 +146,7 @@ void ParallelPortEpp::writeString(char address, char const * const buffer, size_
     changeMode(IEEE1284_MODE_EPP | IEEE1284_DATA);
 
     char const* bp = buffer;
-    for(unsigned int i = bufferSize; i>0; --i,++bp )
+    for(size_t i = bufferSize; i>0; --i,++bp )
     {
         execAndCheck(write(fd_,bp, 1) == 1, "EPP write to PP failed");
     }

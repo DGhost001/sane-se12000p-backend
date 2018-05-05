@@ -497,7 +497,7 @@ unsigned A4s2600::readBlackLevel()
     return summ;
 }
 
-unsigned A4s2600::setDigitalOffset(Channel channel, unsigned offset)
+void A4s2600::setDigitalOffset(Channel channel, unsigned offset)
 {
     unsigned index;
 
@@ -602,12 +602,12 @@ void A4s2600::waitForChannelTransferedToFiFo(Channel channel)
 
 bool A4s2600::fifoAboveLowerLimit()
 {
-    return getStatus() & 0x2 != 0;
+    return (getStatus() & 0x2) != 0;
 }
 
 bool A4s2600::fifoAboveUpperLimit()
 {
-    return getStatus() & 0x4 != 0;
+    return (getStatus() & 0x4) != 0;
 }
 
 void A4s2600::sendChannelData(Channel channel)

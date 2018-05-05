@@ -5,10 +5,10 @@
 
 SaneDeviceHandle::SaneDeviceHandle(const std::string &devName):
     paraport_(devName),
-    asic_(0),
-    scanner_(0),
-    thread_(0),
-    image(0),
+    asic_(nullptr),
+    scanner_(nullptr),
+    thread_(nullptr),
+    image(nullptr),
     bytesAvailable_(0),
     bytesRead_(0),
     imageHeightInCm_(5),
@@ -100,7 +100,7 @@ void SaneDeviceHandle::runScan()
     unsigned height = scanner_->getNumberOfLines(imageHeightInCm_);
     unsigned width = scanner_->getImageWidth();
 
-    image = (uint8_t*)malloc(sizeof(uint8_t)*5300*height); //We always need a image width of 5300 !! For the readout of the CCD!!
+    image = static_cast<uint8_t*>(malloc(sizeof(uint8_t)*5300*height)); //We always need a image width of 5300 !! For the readout of the CCD!!
 
     if(!image)
     {
