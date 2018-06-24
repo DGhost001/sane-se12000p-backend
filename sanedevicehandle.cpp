@@ -4,11 +4,11 @@
 #include <unistd.h>
 
 SaneDeviceHandle::SaneDeviceHandle(const std::string &devName):
+    fifo_(nullptr),
     paraport_(devName),
     asic_(nullptr),
     scanner_(nullptr),
     thread_(nullptr),
-    image(nullptr),
     bytesAvailable_(0),
     bytesRead_(0),
     imageHeightInCm_(5),
@@ -32,11 +32,6 @@ SaneDeviceHandle::~SaneDeviceHandle()
         delete scanner_;
     }
 
-    if(image)
-    {
-        free(image);
-    }
-
     if(thread_)
     {
         if(thread_->joinable())
@@ -44,6 +39,11 @@ SaneDeviceHandle::~SaneDeviceHandle()
             thread_->join();
         }
         delete thread_;
+    }
+
+    if(fifo_)
+    {
+        delete fifo_;
     }
 
     ScannerControl::switchToPrinter(paraport_);
@@ -80,6 +80,11 @@ void SaneDeviceHandle::startScanning()
         delete thread_;
     }
 
+    if(fifo_)
+    {
+        delete fifo_;
+    }
+
     bytesAvailable_ = 0;
     bytesRead_ = 0;
     scanFinished_ = false;
@@ -92,6 +97,8 @@ void SaneDeviceHandle::startScanning()
 
     scanner_->moveToStartPosition();
 
+    fifo_ = new PosixFiFo(); //Create a new Fifo
+
     thread_ = new std::thread(std::bind(&SaneDeviceHandle::runScan,this));
 }
 
@@ -100,14 +107,7 @@ void SaneDeviceHandle::runScan()
     unsigned height = scanner_->getNumberOfLines(imageHeightInCm_);
     unsigned width = scanner_->getImageWidth();
 
-    image = static_cast<uint8_t*>(malloc(sizeof(uint8_t)*5300*height)); //We always need a image width of 5300 !! For the readout of the CCD!!
-
-    if(!image)
-    {
-        return;
-    }
-
-    scanner_->scanLinesGray(A4s2600::Green,height,true,image,sizeof(uint8_t)*5300*height, true);
+    scanner_->scanLinesGray(A4s2600::Green,height,true,*fifo_, true);
 
     asic_->setCalibration(false);
 
@@ -130,19 +130,11 @@ void SaneDeviceHandle::waitForFinishedScan()
 
 size_t SaneDeviceHandle::copyImagebuffer(uint8_t *buff, size_t bufferLength)
 {
-    if(scanFinished_ && bytesAvailable_ != bytesRead_)
+    if(!fifo_)
     {
-        size_t thisBuffSize = 0;
-        unsigned width = scanner_->getImageWidth();
-        for(;bytesAvailable_!=bytesRead_ && thisBuffSize < bufferLength;++bytesRead_, ++thisBuffSize, ++buff)
-        {
-            *buff = image[(bytesRead_ / width)*5300 + bytesRead_ % width];
-        }
-
-        return thisBuffSize;
+        throw std::exception();
     }
-
-    return 0;
+    return fifo_->read(buff, bufferLength);
 }
 
 bool SaneDeviceHandle::getBlocking() const
