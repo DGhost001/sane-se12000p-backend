@@ -355,6 +355,8 @@ void ScannerControl::scanLinesGray(A4s2600::Channel channel,
         asic_.setDataRequest(false);
     }
 
+    fifo.closeWriteFifo();
+
     asic_.setCCDMode(false);
     asic_.setDMA(false);
 
