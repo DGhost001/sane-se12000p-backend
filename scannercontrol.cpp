@@ -1,5 +1,6 @@
 #include "scannercontrol.hpp"
 #include "parallelport.hpp"
+#include "posixfifo.hpp"
 #include <iostream>
 #include <vector>
 
@@ -290,7 +291,83 @@ void ScannerControl::compensatePixelNonuniformity(A4s2600::Channel channel)
 #endif
 }
 
-void ScannerControl::scanLinesGray(A4s2600::Channel channel, unsigned numberOfLines, bool moveWhileScanning, uint8_t *buffer, size_t bufferSize, bool enableCalibration)
+void ScannerControl::scanLinesGray(A4s2600::Channel channel,
+                                   unsigned numberOfLines,
+                                   bool moveWhileScanning,
+                                   PosixFiFo &fifo,
+                                   bool enableCalibration)
+{
+    unsigned scannedLines = 0;
+    unsigned readLines = 0;
+    asic_.setSpeedCounter(motorSpeed_);
+    asic_.resetFiFo();
+
+    asic_.setCCDMode(true);
+    asic_.setDMA(true);
+
+    std::vector<uint8_t> line;
+    line.resize(BytePerLine);
+
+    while(scannedLines < numberOfLines)
+    {
+        do
+        {
+            if(moveWhileScanning)
+            {
+                asic_.waitForClockChange(2);
+            }
+            asic_.sendChannelData(channel);
+            if(moveWhileScanning)
+            {
+                asic_.enableMove(true);
+            }else
+            {
+                asic_.waitForChannelTransferedToFiFo(channel);
+            }
+            ++scannedLines;
+        }while(scannedLines % 20 != 0 && scannedLines < numberOfLines);
+
+        asic_.setDataRequest(true);
+
+        do
+        {
+            asic_.aquireImageData(&line[0],line.size());
+
+            if(enableCalibration)
+            {
+                for(unsigned int i=0; i<5300/multiplyer_; ++i)
+                {
+                    double tmp = line[i*multiplyer_]*perPixelGain[channel][i*multiplyer_];
+                    if(tmp >= 256)
+                    {
+                        tmp = 255;
+                    }
+
+                    line[i] = (uint8_t)tmp;
+                }
+            }
+
+            fifo.write(&line[0], 5300/multiplyer_);
+
+            ++readLines;
+        }while(readLines != scannedLines);
+
+        asic_.setDataRequest(false);
+    }
+
+    asic_.setCCDMode(false);
+    asic_.setDMA(false);
+
+}
+
+
+
+void ScannerControl::scanLinesGray(A4s2600::Channel channel,
+                                   unsigned numberOfLines,
+                                   bool moveWhileScanning,
+                                   uint8_t *buffer,
+                                   size_t bufferSize,
+                                   bool enableCalibration)
 {
 
     unsigned scannedLines = 0;
