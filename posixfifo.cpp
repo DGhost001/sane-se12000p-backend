@@ -12,25 +12,23 @@
 
 PosixFiFo::PosixFiFo()
 {
-    remove("/tmp/fifo_se12000p");
-    if(mkfifo("/tmp/fifo_se12000p", S_IRWXU | S_IRWXG | S_IRWXO))
+    int fds[2];
+
+    if(pipe(fds))
     {
-        std::string message = "Failed to create FiFo";
+        std::string message = "Failed to create a pipe";
         std::error_code error(errno,std::system_category());
         throw std::system_error(error,message);
     }
 
-    int tmp = open("/tmp/fifo_se12000p",O_APPEND | O_RDONLY |O_NONBLOCK );
-    fdWrite_ = open("/tmp/fifo_se12000p",O_APPEND | O_WRONLY | O_NONBLOCK);
-    fdRead_ = open("/tmp/fifo_se12000p",O_APPEND | O_RDONLY );
-    close(tmp);
+    fdRead_ = fds[0];
+    fdWrite_= fds[1];
 }
 
 PosixFiFo::~PosixFiFo()
 {
     closeReadFifo();
     closeWriteFifo();
-    remove("/tmp/fifo_se12000p");
 }
 
 void PosixFiFo::write(uint8_t *buffer, size_t bufferSize)
@@ -72,6 +70,7 @@ void PosixFiFo::closeWriteFifo()
     if(fdWrite_)
     {
         close(fdWrite_);
+        fdWrite_ = 0;
     }
 }
 
@@ -81,5 +80,6 @@ void PosixFiFo::closeReadFifo()
     if(fdRead_)
     {
         close(fdRead_);
+        fdRead_ = 0;
     }
 }
