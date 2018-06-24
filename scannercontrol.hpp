@@ -3,6 +3,8 @@
 
 #include "a4s2600.hpp"
 
+class PosixFiFo;
+
 class ScannerControl
 {
 public:  
@@ -12,6 +14,7 @@ public:
     void gotoHomePos();
     void setupResolution(unsigned dpi);
     void scanLinesGray(A4s2600::Channel channel, unsigned numberOfLines, bool moveWhileScanning, uint8_t *buffer, size_t bufferSize, bool enableCalibration = false);
+    void scanLinesGray(A4s2600::Channel channel, unsigned numberOfLines, bool moveWhileScanning, PosixFiFo &fifo, bool enableCalibration = false);
     void calibrateScanner();
     void moveToStartPosition();
     unsigned getNumberOfLines(double sizeInCm);

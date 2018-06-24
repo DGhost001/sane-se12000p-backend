@@ -598,29 +598,17 @@ SANE_Status EXPORT(read) (SANE_Handle h, SANE_Byte * buf, SANE_Int maxlen, SANE_
 
         try
         {
-            if(handle->isScanFinished() && handle->copyFinished())
+
+            size_t bytesRead = handle->copyImagebuffer(buf, maxlen);
+
+            if(bytesRead == 0 && handle->isScanFinished())
             {
                 return SANE_STATUS_EOF;
             }
 
-            //In case of blocking io ... wait for the scanner to finish
-            if(!handle->isScanFinished() && handle->getBlocking())
-            {
-                handle->waitForFinishedScan();
-            }else if(!handle->isScanFinished()) //Do we have actual image data??
-            {
-                if(*len)
-                {
-                    *len = 0;
-                }
-
-                return SANE_STATUS_GOOD;
-            }
-
-            int result = handle->copyImagebuffer(buf,maxlen);
             if(len)
             {
-                *len = result;
+                *len = bytesRead;
             }
 
             return SANE_STATUS_GOOD;

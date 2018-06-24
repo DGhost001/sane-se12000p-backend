@@ -4,6 +4,7 @@
 #include "parallelport.hpp"
 #include "a4s2600.hpp"
 #include "scannercontrol.hpp"
+#include "posixfifo.hpp"
 
 #include <thread>
 
@@ -31,11 +32,11 @@ public:
     void setImageHeightInCm(double imageHeightInCm);
 
 private:
+    PosixFiFo *fifo_;
     ParallelPortSpp paraport_;
     A4s2600 *asic_;
     ScannerControl *scanner_;
     std::thread *thread_;
-    uint8_t *image;
     size_t bytesAvailable_;
     size_t bytesRead_;
     double imageHeightInCm_;

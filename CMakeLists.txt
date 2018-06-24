@@ -13,6 +13,8 @@ set(SRC_LIST
     sane-backend.cpp
     sanedevicehandle.cpp
     sanedevicehandle.hpp
+    posixfifo.cpp
+    posixfifo.hpp
 )
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -std=gnu++11)
 
