@@ -26,6 +26,13 @@ PosixFiFo::PosixFiFo()
     close(tmp);
 }
 
+PosixFiFo::~PosixFiFo()
+{
+    closeReadFifo();
+    closeWriteFifo();
+    remove("/tmp/fifo_se12000p");
+}
+
 void PosixFiFo::write(uint8_t *buffer, size_t bufferSize)
 {
     while(bufferSize > 0)
@@ -58,4 +65,21 @@ size_t PosixFiFo::read(uint8_t *buffer, size_t bufferSize)
     }
 
     return bytesRead;
+}
+
+void PosixFiFo::closeWriteFifo()
+{
+    if(fdWrite_)
+    {
+        close(fdWrite_);
+    }
+}
+
+
+void PosixFiFo::closeReadFifo()
+{
+    if(fdRead_)
+    {
+        close(fdRead_);
+    }
 }
