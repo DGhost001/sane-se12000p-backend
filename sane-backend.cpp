@@ -49,7 +49,7 @@ static MyOption OptionCount =
         .desc = SANE_DESC_NUM_OPTIONS,
         .type = SANE_TYPE_INT,
         .unit = SANE_UNIT_NONE,
-        .size = sizeof(SANE_Int) / sizeof(SANE_Word),
+        .size = sizeof(SANE_Int),
         .cap = 0,
         .constraint_type = SANE_CONSTRAINT_NONE
     },
@@ -530,6 +530,8 @@ SANE_Status EXPORT(control_option) (SANE_Handle h, SANE_Int n,
         }
     }
     std::cerr<<"ctrl err"<<std::endl;
+    if(!h) std::cerr<<"Inv handle"<<std::endl;
+    if(!v) std::cerr<<"Inv v"<<std::endl;
     return SANE_STATUS_INVAL;
 }
 
