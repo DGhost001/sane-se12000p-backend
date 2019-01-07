@@ -160,7 +160,7 @@ unsigned ScannerControl::adjustAnalogOffset(A4s2600::Channel channel)
 
        total = getBlackTotal(temporaryBuffer);
 
-       if(total > 10) //Half of all pixel are 1 the rest is 0
+       if(total > 20) //Half of all pixel are 1 the rest is 0
        {
            offset = newOffset;
        }
