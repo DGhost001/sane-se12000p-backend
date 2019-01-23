@@ -588,7 +588,7 @@ SANE_Status EXPORT(start) (SANE_Handle h)
 
 SANE_Status EXPORT(read) (SANE_Handle h, SANE_Byte * buf, SANE_Int maxlen, SANE_Int * len)
 {
-    std::cerr<<"read"<<std::endl;
+    //std::cerr<<"read"<<std::endl;
     if(h)
     {
         SaneDeviceHandle *handle = static_cast<SaneDeviceHandle*>(h);
