@@ -517,11 +517,11 @@ void A4s2600::waitForClockLevel(bool high)
 {
     unsigned level = high ? 1 : 0;
     unsigned timeout = getCurrentExposureLevel() * 10;
-    auto start  = std::chrono::high_resolution_clock::now();
+    auto start  = std::chrono::steady_clock::now();
 
     while((getStatus() & 1) != level)
     {
-        if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
+        if(std::chrono::duration_cast<UsDuration>(std::chrono::steady_clock::now() - start).count() > timeout)
         {
             throw std::runtime_error("Timeout while waiting for Clock level");
         }
@@ -544,10 +544,10 @@ void A4s2600::waitForClockChange()
 {
     bool level = getClockLevel();
     unsigned timeout = getCurrentExposureLevel() * 10;
-    auto start  = std::chrono::high_resolution_clock::now();
+    auto start  = std::chrono::steady_clock::now();
     while(level ==  getClockLevel())
     {
-        if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
+        if(std::chrono::duration_cast<UsDuration>(std::chrono::steady_clock::now() - start).count() > timeout)
         {
             throw std::runtime_error("Timeout while waiting for Clock level");
         }
@@ -580,20 +580,20 @@ void A4s2600::waitForChannelTransferedToFiFo(Channel channel)
     case AllChannels: throw std::runtime_error("Not implemented");
     }
 
-    auto start  = std::chrono::high_resolution_clock::now();
+    auto start  = std::chrono::steady_clock::now();
     while((getStatus() & channelValue) != 0)
     {
-        if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
+        if(std::chrono::duration_cast<UsDuration>(std::chrono::steady_clock::now() - start).count() > timeout)
         {
             std::cerr<<std::dec<<timeout<<std::endl;
             throw std::runtime_error("Timeout while waiting for channel transfer start");
         }
     }
 
-    start  = std::chrono::high_resolution_clock::now();
+    start  = std::chrono::steady_clock::now();
     while((getStatus() & channelValue) == 0)
     {
-        if(std::chrono::duration_cast<UsDuration>(std::chrono::high_resolution_clock::now() - start).count() > timeout)
+        if(std::chrono::duration_cast<UsDuration>(std::chrono::steady_clock::now() - start).count() > timeout)
         {
             throw std::runtime_error("Timeout while waiting for channel transfer finish");
         }
